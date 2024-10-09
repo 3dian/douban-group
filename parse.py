@@ -45,7 +45,8 @@ def parse_detail(html):
     content = soup.find("div", class_='topic-richtext').get_text("\n", True)
     author = soup.select_one('#topic-content h3 a')
     create_time = soup.select_one('#topic-content h3 span.create-time').get_text()
-    rent = extract_rent(title + "\n" + content)
+    # rent = extract_rent(title + "\n" + content)
+    rent = 1000
     return {
         "title": title,
         "rent": rent,

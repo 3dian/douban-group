@@ -1,17 +1,21 @@
 import logging
 import random
+import re
 import sys
 import time
 
 import requests
+import urllib3
 
 import notify
 from config import GROUP_LIST, HEADERS, REQUEST_INTERVAL
 from parse import parse_list, parse_detail
 
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
 
 def __get(url):
-    response = requests.get(url, headers=HEADERS)
+    response = requests.get(url, headers=HEADERS, verify=False)
     html = response.text
     if response.ok:
         return html
@@ -49,16 +53,31 @@ def crawl_list(group_id, start_time, start=None):
     return post_list + crawl_list(group_id, start_time, start + 25 if start else 50)
 
 
-def crawl_detail(url, start_time):
+def crawl_detail(url, start_id, start_time):
     """
     获取帖子详情
     """
+    current_id = extract_id(url)
+    if current_id is None or current_id < start_id:
+        return {}
     html = __get(url)
     if not html:
         return {}
     post = parse_detail(html)
     post['url'] = url
+    post['id'] = current_id
     if notify.meet_condition(post, start_time):
-        msg = f'**标题**：[{post["title"]}]({url})\n**租金**：{post["rent"]}\n**发布时间**：{post["create_time"]}\n**作者**：[{post["author"]["name"]}]({post["author"]["url"]})\n**内容**：{post["content"]}'
+        msg = f'**标题**：[{post["title"]}]({url})\n**租金**：{post["rent"]}\n**发布时间**：{post["create_time"]}\n**作者**：[{post["author"]["name"]}]({post["author"]["url"]})\n**内容**：{post["content"]}\n\n'
         notify.send_msg(msg)
+        with open("./test.txt", "a+") as file:
+            # 定义要写入的字符串
+            file.write(msg)
     return post
+
+
+def extract_id(url):
+    # 使用正则表达式提取 /topic/ 后面的数字串
+    match = re.search(r'/topic/(\d+)', url)
+    if match:
+        return int(match.group(1))  # 返回提取到的数字串
+    return None  # 如果没有匹配，返回 None
